@@ -12,10 +12,42 @@ import sys
 from pathlib import Path
 
 
+def _find_via_desktop_files() -> Path | None:
+    """
+    Parse XDG .desktop files to locate the Natron binary.
+    Covers non-standard install paths that KDE/GNOME already know about.
+    """
+    xdg_data_dirs = os.environ.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share')
+    app_dirs = [Path.home() / '.local' / 'share' / 'applications']
+    for d in xdg_data_dirs.split(':'):
+        app_dirs.append(Path(d) / 'applications')
+
+    for app_dir in app_dirs:
+        if not app_dir.is_dir():
+            continue
+        for desktop_file in app_dir.glob('*[Nn]atron*.desktop'):
+            try:
+                for line in desktop_file.read_text().splitlines():
+                    if not line.startswith('Exec='):
+                        continue
+                    # Exec=/path/to/Natron %F  — take the first token
+                    exec_path = line[5:].split()[0]
+                    p = Path(exec_path)
+                    if p.exists() and p.name in ('Natron', 'Natron.exe'):
+                        return p.resolve().parent
+            except Exception:
+                pass
+    return None
+
+
 def find_natron_install() -> Path | None:
     """
     Return the directory containing the Natron binary, or None if not found.
-    Checks PATH first, then common per-OS install locations.
+
+    Search order:
+    1. PATH
+    2. XDG .desktop files (covers non-standard paths registered with KDE/GNOME)
+    3. Common per-OS install locations (/opt, ~, /Applications, %LOCALAPPDATA%, …)
     """
     # 1. PATH
     binary = shutil.which('Natron')
@@ -23,6 +55,12 @@ def find_natron_install() -> Path | None:
         return Path(binary).resolve().parent
 
     platform = sys.platform
+
+    # 2. XDG desktop files (Linux/macOS)
+    if not platform.startswith('win'):
+        result = _find_via_desktop_files()
+        if result:
+            return result
 
     if platform.startswith('linux'):
         for root in (Path('/opt'), Path.home(), Path.home() / '.local'):

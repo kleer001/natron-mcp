@@ -11,23 +11,35 @@ Polls the MCP TCP port (54321) until Natron responds to a ping, then exits.
 """
 
 import argparse
-import configparser
 import json
-import os
 import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from natron_detect import find_natron_install
 
-NATRON_BASE = Path('/media/menser/fauna/META_VFX/software/natron/Natron-2.5.0-Linux-x86_64-no-installer')
-NATRON_BIN  = NATRON_BASE / 'Natron'
-RENDERER_BIN = NATRON_BASE / 'NatronRenderer'
-NATRON_CONF = Path.home() / '.config' / 'INRIA' / 'Natron.conf'
-MCP_PORT    = 54321
+NATRON_CONF   = Path.home() / '.config' / 'INRIA' / 'Natron.conf'
+MCP_PORT      = 54321
 POLL_INTERVAL = 1.0
 POLL_TIMEOUT  = 30
+
+
+def _resolve_install(natron_dir: str | None) -> Path:
+    if natron_dir:
+        p = Path(natron_dir)
+        if not p.is_dir():
+            print(f'Error: --natron-dir not found: {p}', file=sys.stderr)
+            sys.exit(1)
+        return p
+    install = find_natron_install()
+    if install is None:
+        print('Error: Natron not found. Use --natron-dir to specify the install directory.',
+              file=sys.stderr)
+        sys.exit(1)
+    return install
 
 
 def _most_recent_project() -> str | None:
@@ -66,10 +78,16 @@ def main():
     parser.add_argument('project', nargs='?', help='Path to .ntp project file')
     parser.add_argument('--headless', action='store_true',
                         help='Launch NatronRenderer in terminal mode (no GUI)')
+    parser.add_argument('--natron-dir', default=None,
+                        help='Natron install directory (default: auto-detected)')
     args = parser.parse_args()
 
+    install = _resolve_install(args.natron_dir)
+    bin_name      = 'Natron.exe'      if sys.platform == 'win32' else 'Natron'
+    renderer_name = 'NatronRenderer.exe' if sys.platform == 'win32' else 'NatronRenderer'
+
     if args.headless:
-        binary = RENDERER_BIN
+        binary = install / renderer_name
         if not binary.exists():
             print(f'Error: NatronRenderer not found at {binary}', file=sys.stderr)
             sys.exit(1)
@@ -77,7 +95,7 @@ def main():
         if args.project:
             cmd.append(args.project)
     else:
-        binary = NATRON_BIN
+        binary = install / bin_name
         if not binary.exists():
             print(f'Error: Natron not found at {binary}', file=sys.stderr)
             sys.exit(1)

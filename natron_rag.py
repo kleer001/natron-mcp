@@ -13,6 +13,9 @@ import json
 import math
 import os
 import re
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -34,6 +37,58 @@ _BM25_B  = 0.75
 _index: dict | None = None
 
 
+def _detect_installed_version() -> str | None:
+    """Best-effort: find the Natron binary and get its version string."""
+    binary = shutil.which('Natron')
+    if binary is None:
+        # Check common dirs the same way natron_detect.py does, but inline
+        # so natron_rag.py stays self-contained (no scripts/ dependency).
+        platform = sys.platform
+        candidates: list[Path] = []
+        if platform.startswith('linux'):
+            for root in (Path('/opt'), Path.home(), Path.home() / '.local'):
+                try:
+                    candidates += [d / 'Natron' for d in root.iterdir()
+                                   if d.name.startswith('Natron')]
+                except (PermissionError, FileNotFoundError):
+                    pass
+        elif platform == 'darwin':
+            for apps in (Path('/Applications'), Path.home() / 'Applications'):
+                candidates += list(apps.glob('Natron*.app/Contents/MacOS/Natron'))
+        elif platform == 'win32':
+            for env_var in ('LOCALAPPDATA', 'PROGRAMFILES', 'PROGRAMFILES(X86)'):
+                base = os.environ.get(env_var, '')
+                if base:
+                    candidates += [d / 'Natron.exe'
+                                   for d in Path(base).glob('Natron*')]
+        for p in candidates:
+            if p.exists():
+                binary = str(p)
+                break
+
+    if binary is None:
+        return None
+
+    # Try --version flag
+    try:
+        result = subprocess.run(
+            [binary, '--version'], capture_output=True, text=True, timeout=10,
+        )
+        for line in (result.stdout + result.stderr).splitlines():
+            m = re.search(r'(\d+\.\d+\.\d+)', line)
+            if m:
+                return m.group(1)
+    except Exception:
+        pass
+
+    # Fallback: parse from directory name
+    m = re.search(r'[Nn]atron[_-](\d+\.\d+[\.\d]*)', Path(binary).parent.name)
+    if m:
+        return m.group(1)
+
+    return None
+
+
 def _load_index() -> dict:
     global _index
     if _index is None:
@@ -43,7 +98,22 @@ def _load_index() -> dict:
                 'Run: python scripts/fetch_natron_docs.py'
             )
         _index = json.loads(INDEX_PATH.read_text(encoding='utf-8'))
+        _check_version(_index)
     return _index
+
+
+def _check_version(idx: dict) -> None:
+    indexed_version = idx.get('natron_version')
+    if not indexed_version:
+        return  # index predates version tracking — nothing to compare
+    installed = _detect_installed_version()
+    if installed and installed != indexed_version:
+        print(
+            f'[natron-mcp] Warning: docs index was built for Natron {indexed_version} '
+            f'but Natron {installed} is installed. '
+            'Re-run: uv run python scripts/fetch_natron_docs.py',
+            file=sys.stderr,
+        )
 
 
 def _tokenize(text: str) -> list[str]:

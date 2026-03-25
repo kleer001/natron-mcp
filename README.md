@@ -21,9 +21,26 @@ Two layers:
 1. **Plugin** (`src/natronmcp/`) — runs *inside* Natron's embedded Python. Loaded via `~/.Natron/init.py`. Uses a PySide `QTimer` to dispatch all NatronEngine calls on the main thread.
 2. **Bridge** (`natron_mcp_server.py`) — standalone MCP server (stdio). Translates tool calls to TCP JSON.
 
-## Quick start
+## Get Started
 
-### 1. Install
+**Prerequisites:** [Natron 2.5.x](https://natrongithub.github.io/), Python 3.10+, [uv](https://docs.astral.sh/uv/), Claude Code or Claude Desktop
+
+**Linux / macOS**
+```bash
+curl -sSL https://raw.githubusercontent.com/kleer001/natron-mcp/main/bootstrap.sh | bash
+```
+
+**Windows** (PowerShell)
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/kleer001/natron-mcp/main/bootstrap.bat -OutFile bootstrap.bat; .\bootstrap.bat"
+```
+
+The bootstrap script clones the repo, installs dependencies via `uv`, installs the Natron startup hook, builds the offline documentation index, and configures your MCP client — all in one shot.
+
+<details>
+<summary>Manual setup (step by step)</summary>
+
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/kleer001/natron-mcp
@@ -34,25 +51,33 @@ uv sync
 ### 2. Install the Natron startup hook
 
 ```bash
-python scripts/install.py
+uv run python scripts/install.py
 ```
 
-This appends to `~/.Natron/init.py` so Natron auto-starts the TCP server.
+This appends to `~/.Natron/init.py` so Natron auto-starts the TCP server on port 54321.
 
 ### 3. Build the documentation index (optional but recommended)
 
 ```bash
-python scripts/fetch_natron_docs.py
+uv run python scripts/fetch_natron_docs.py
 ```
 
-### 4. Add to Claude Code's MCP config
+Pass `--docs-dir /path/to/Natron/Resources/docs/html` if Natron isn't in a standard location.
+
+### 4. Configure Claude Code
+
+```bash
+claude mcp add --transport stdio --scope user natron -- uv --directory /path/to/natron-mcp run python natron_mcp_server.py
+```
+
+Or add to `claude_desktop_config.json` for Claude Desktop:
 
 ```json
 {
   "mcpServers": {
     "natron": {
       "command": "uv",
-      "args": ["--directory", "/path/to/natron-mcp", "run", "natron_mcp_server.py"]
+      "args": ["--directory", "/path/to/natron-mcp", "run", "python", "natron_mcp_server.py"]
     }
   }
 }
@@ -61,8 +86,10 @@ python scripts/fetch_natron_docs.py
 ### 5. Launch Natron and start compositing
 
 ```bash
-python scripts/launch.py
+uv run python scripts/launch.py
 ```
+
+</details>
 
 ## Available tools
 

@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# natron-mcp generated artifacts
+natron_docs/
+natron_docs_index.json

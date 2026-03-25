@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260">
+  <defs>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600&amp;display=swap');</style>
+  </defs>
+  <rect width="900" height="260" rx="12" fill="#ffffff"/>
+  <rect width="900" height="260" rx="12" fill="none" stroke="#e0e0e0" stroke-width="1"/>
+
+  <!-- Logo circle -->
+  <g transform="translate(50, 30)">
+    <circle cx="100" cy="100" r="94" fill="#1a1a1a"/>
+
+    <!-- Hex cube wireframe, scaled 1.45× inside circle -->
+    <g transform="translate(100,100) scale(1.45) translate(-50,-50)">
+      <!-- Outer hexagon — white -->
+      <polygon points="50,7 87.24,28.5 87.24,71.5 50,93 12.76,71.5 12.76,28.5"
+               fill="none" stroke="#ffffff" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Outer connectors: top, lower-right, lower-left — white -->
+      <line x1="50" y1="7"     x2="50"    y2="28"  stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+      <line x1="87.24" y1="71.5" x2="69.05" y2="61"  stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+      <line x1="12.76" y1="71.5" x2="30.95" y2="61"  stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+      <!-- Inner hexagon — accent -->
+      <polygon points="50,28 69.05,39 69.05,61 50,72 30.95,61 30.95,39"
+               fill="none" stroke="#C026D3" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Inner Y: center→upper-right, center→bottom, center→upper-left — accent -->
+      <line x1="50" y1="50" x2="69.05" y2="39" stroke="#C026D3" stroke-width="6" stroke-linecap="round"/>
+      <line x1="50" y1="50" x2="50"    y2="72" stroke="#C026D3" stroke-width="6" stroke-linecap="round"/>
+      <line x1="50" y1="50" x2="30.95" y2="39" stroke="#C026D3" stroke-width="6" stroke-linecap="round"/>
+    </g>
+
+    <circle cx="100" cy="100" r="94" stroke="#C026D3" stroke-width="2" fill="none"/>
+  </g>
+
+  <!-- Text -->
+  <text x="290" y="82" font-family="Inter, Helvetica, Arial, sans-serif" font-weight="600" font-size="40" fill="#1a1a1a" letter-spacing="1">natron-mcp</text>
+  <text x="290" y="138" font-family="Inter, Helvetica, Arial, sans-serif" font-weight="600" font-size="28" fill="#C026D3">Talk to Natron.</text>
+  <text x="290" y="182" font-family="Inter, Helvetica, Arial, sans-serif" font-weight="300" font-size="18" fill="#555555">Describe it. Node it. Render it.</text>
+  <rect x="290" y="208" width="165" height="2" rx="1" fill="#C026D3" opacity="0.6"/>
+</svg>

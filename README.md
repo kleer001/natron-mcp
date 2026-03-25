@@ -1,4 +1,4 @@
-# natron-mcp
+![natron-mcp](logos/banner_v2_1_gradient_sweep.png)
 
 MCP (Model Context Protocol) bridge connecting [Natron](https://natrongithub.github.io/)
 compositor to Claude AI. Control Natron's node graph, read and set parameters,

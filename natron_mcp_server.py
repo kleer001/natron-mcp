@@ -12,10 +12,15 @@ Start Natron first (scripts/launch.py) so the TCP server is ready.
 
 import json
 import socket
+import sys
 import threading
+from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+
+sys.path.insert(0, str(Path(__file__).parent))
+import natron_rag
 
 NATRON_HOST = '127.0.0.1'
 NATRON_PORT = 54321
@@ -191,6 +196,39 @@ def execute_python(code: str) -> dict:
         code: Python source code to execute
     """
     return _natron('execute_python', code=code)
+
+
+# ---------------------------------------------------------------------------
+# Documentation tools (BM25 search — no Natron connection needed)
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def search_docs(query: str, top_k: int = 5) -> list:
+    """
+    Search Natron's offline documentation using BM25.
+
+    Returns up to top_k results as [{'path': str, 'title': str, 'score': float}, ...].
+    Requires the docs index to have been built first (scripts/fetch_natron_docs.py).
+
+    Args:
+        query: Search terms, e.g. 'Merge node blend modes'
+        top_k: Maximum number of results to return (default 5)
+    """
+    return natron_rag.search_docs(query, top_k)
+
+
+@mcp.tool()
+def get_doc(path: str) -> str:
+    """
+    Return the full text of a Natron documentation page.
+
+    Use search_docs() first to find a relevant page, then pass its 'path'
+    field here to read the full content.
+
+    Args:
+        path: Relative path as returned by search_docs (e.g. 'plugins/net.sf.openfx.MergePlugin.html')
+    """
+    return natron_rag.get_doc(path)
 
 
 # ---------------------------------------------------------------------------

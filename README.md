@@ -6,7 +6,7 @@ and query Natron's documentation — all from Claude Code.
 
 ## What it does
 
-- **10 MCP tools** for node graph manipulation: create nodes, connect them, read/write parameters, execute arbitrary Python in Natron's Script Editor
+- **12 MCP tools**: node graph manipulation (create, connect, read/write parameters, execute Python) plus offline doc search
 - **Offline doc search** — BM25 over Natron's bundled HTML docs, zero network calls
 - Works with Natron 2.5.x (Qt4 / PySide 1.2.4)
 
@@ -105,6 +105,8 @@ uv run python scripts/launch.py
 | `connect_nodes` | Wire src output → dst input |
 | `delete_node` | Remove a node |
 | `execute_python` | Run Python in Natron's Script Editor namespace |
+| `search_docs` | BM25 search over Natron's offline documentation |
+| `get_doc` | Return the full text of a documentation page |
 
 ## Requirements
 

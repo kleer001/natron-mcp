@@ -17,6 +17,7 @@ if _root not in sys.path:
     sys.path.insert(0, _root)
 
 import natron_mcp_server as bridge
+import natron_rag
 
 
 def _mock_client(return_value=None):
@@ -123,6 +124,37 @@ def test_execute_python():
     with patch.object(bridge, '_client', _mock_client(payload)):
         result = bridge.execute_python('print("hello")')
     assert 'hello' in result['output']
+
+
+# ---------------------------------------------------------------------------
+# search_docs / get_doc (RAG tools — no TCP connection)
+# ---------------------------------------------------------------------------
+
+def test_search_docs_delegates_to_rag():
+    hits = [{'path': 'plugins/Merge.html', 'title': 'Merge', 'score': 3.14}]
+    with patch.object(natron_rag, 'search_docs', return_value=hits) as mock_search:
+        result = bridge.search_docs('merge blend', top_k=3)
+    assert result == hits
+    mock_search.assert_called_once_with('merge blend', 3)
+
+
+def test_search_docs_empty_query_returns_empty():
+    with patch.object(natron_rag, 'search_docs', return_value=[]):
+        result = bridge.search_docs('')
+    assert result == []
+
+
+def test_get_doc_delegates_to_rag():
+    with patch.object(natron_rag, 'get_doc', return_value='Merge documentation text') as mock_get:
+        result = bridge.get_doc('plugins/Merge.html')
+    assert 'Merge' in result
+    mock_get.assert_called_once_with('plugins/Merge.html')
+
+
+def test_get_doc_missing_raises():
+    with patch.object(natron_rag, 'get_doc', side_effect=FileNotFoundError('not found')):
+        with pytest.raises(FileNotFoundError):
+            bridge.get_doc('nonexistent.html')
 
 
 # ---------------------------------------------------------------------------

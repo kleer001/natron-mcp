@@ -68,6 +68,14 @@ def _require_param(node, name: str):
     return param
 
 
+def _node_summary(node) -> dict:
+    return {
+        'script_name': node.getScriptName(),
+        'label':       node.getLabel(),
+        'plugin_id':   node.getPluginID(),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main-thread dispatch
 # ---------------------------------------------------------------------------
@@ -119,15 +127,33 @@ def _dispatch(method: str, params: dict) -> dict:
 
     # All other commands marshal to main thread
     handlers = {
-        'get_scene_info':  _cmd_get_scene_info,
-        'list_nodes':      _cmd_list_nodes,
-        'create_node':     _cmd_create_node,
-        'get_node_info':   _cmd_get_node_info,
-        'set_parameter':   _cmd_set_parameter,
-        'get_parameter':   _cmd_get_parameter,
-        'connect_nodes':   _cmd_connect_nodes,
-        'delete_node':     _cmd_delete_node,
-        'execute_python':  _cmd_execute_python,
+        'get_scene_info':       _cmd_get_scene_info,
+        'list_nodes':           _cmd_list_nodes,
+        'create_node':          _cmd_create_node,
+        'get_node_info':        _cmd_get_node_info,
+        'set_parameter':        _cmd_set_parameter,
+        'get_parameter':        _cmd_get_parameter,
+        'connect_nodes':        _cmd_connect_nodes,
+        'delete_node':          _cmd_delete_node,
+        'execute_python':       _cmd_execute_python,
+        'save_project':         _cmd_save_project,
+        'load_project':         _cmd_load_project,
+        'get_frame':            _cmd_get_frame,
+        'set_frame':            _cmd_set_frame,
+        'set_project_settings': _cmd_set_project_settings,
+        'set_node_position':    _cmd_set_node_position,
+        'set_node_label':       _cmd_set_node_label,
+        'set_node_color':       _cmd_set_node_color,
+        'render':               _cmd_render,
+        'create_backdrop':      _cmd_create_backdrop,
+        'list_plugin_ids':      _cmd_list_plugin_ids,
+        'modify_node':          _cmd_modify_node,
+        'find_nodes_by_type':   _cmd_find_nodes_by_type,
+        'batch_set_knob':       _cmd_batch_set_knob,
+        'setup_write_node':     _cmd_setup_write_node,
+        'set_expression':       _cmd_set_expression,
+        'get_expression':       _cmd_get_expression,
+        'clear_expression':     _cmd_clear_expression,
     }
     handler = handlers.get(method)
     if handler is None:
@@ -175,10 +201,7 @@ def _cmd_get_scene_info(_params):
 
 def _cmd_list_nodes(_params):
     app = _require_app()
-    return {'nodes': [
-        {'script_name': n.getScriptName(), 'label': n.getLabel(), 'plugin_id': n.getPluginID()}
-        for n in app.getChildren()
-    ]}
+    return {'nodes': [_node_summary(n) for n in app.getChildren()]}
 
 
 def _cmd_create_node(params):
@@ -189,7 +212,7 @@ def _cmd_create_node(params):
     node = app.createNode(plugin_id)
     if node is None:
         raise RuntimeError(f'Failed to create node: {plugin_id}')
-    return {'script_name': node.getScriptName(), 'label': node.getLabel(), 'plugin_id': node.getPluginID()}
+    return _node_summary(node)
 
 
 def _cmd_get_node_info(params):
@@ -281,6 +304,231 @@ def _cmd_execute_python(params):
         sys.stdout = old_stdout
     result = ns.get('_result', None)
     return {'output': output, 'result': result}
+
+
+def _cmd_save_project(params):
+    filename = params.get('filename', '')
+    app = _require_app()
+    ok = app.saveProject(filename)
+    return {'ok': bool(ok), 'filename': filename}
+
+
+def _cmd_load_project(params):
+    filename = params.get('filename')
+    if not filename:
+        raise ValueError('filename required')
+    app = _require_app()
+    new_app = app.loadProject(filename)
+    if new_app is None:
+        raise RuntimeError(f'Failed to load project: {filename}')
+    return {'ok': True, 'filename': filename}
+
+
+def _cmd_get_frame(_params):
+    app = _require_app()
+    return {'frame': app.timelineGetTime()}
+
+
+def _cmd_set_frame(params):
+    frame = params.get('frame')
+    if frame is None:
+        raise ValueError('frame required')
+    app = _require_app()
+    # seek() lives on PyViewer (GuiApp only); find the first Viewer node
+    if not hasattr(app, 'getViewer'):
+        raise RuntimeError('set_frame requires GUI mode (NatronRenderer not supported)')
+    for node in app.getChildren():
+        if node.getPluginID() == 'fr.inria.built-in.Viewer':
+            viewer = app.getViewer(node.getScriptName())
+            viewer.seek(int(frame))
+            return {'ok': True, 'frame': int(frame)}
+    raise RuntimeError('No Viewer node in project; add a Viewer node first')
+
+
+def _cmd_set_project_settings(params):
+    app = _require_app()
+    proj = app.getProjectParam
+    if 'fps' in params:
+        proj('frameRate').setValue(float(params['fps']))
+    if 'first_frame' in params or 'last_frame' in params:
+        fr = proj('frameRange')
+        if 'first_frame' in params:
+            fr.setValue(int(params['first_frame']), 0)
+        if 'last_frame' in params:
+            fr.setValue(int(params['last_frame']), 1)
+    return {'ok': True}
+
+
+def _cmd_set_node_position(params):
+    name = params.get('script_name')
+    x    = params.get('x')
+    y    = params.get('y')
+    if not name or x is None or y is None:
+        raise ValueError('script_name, x, and y required')
+    node = _require_node(_require_app(), name)
+    node.setPosition(float(x), float(y))
+    pos = node.getPosition()
+    return {'script_name': name, 'x': pos[0], 'y': pos[1]}
+
+
+def _cmd_set_node_label(params):
+    name  = params.get('script_name')
+    label = params.get('label')
+    if not name or label is None:
+        raise ValueError('script_name and label required')
+    node = _require_node(_require_app(), name)
+    node.setLabel(label)
+    return {'script_name': name, 'label': node.getLabel()}
+
+
+def _cmd_set_node_color(params):
+    name = params.get('script_name')
+    r    = params.get('r')
+    g    = params.get('g')
+    b    = params.get('b')
+    if not name or r is None or g is None or b is None:
+        raise ValueError('script_name, r, g, b required')
+    node = _require_node(_require_app(), name)
+    node.setColor(float(r), float(g), float(b))
+    color = node.getColor()
+    return {'script_name': name, 'r': color[0], 'g': color[1], 'b': color[2]}
+
+
+def _cmd_render(params):
+    write_node  = params.get('write_node')
+    first_frame = params.get('first_frame')
+    last_frame  = params.get('last_frame')
+    frame_step  = int(params.get('frame_step', 1))
+    if not write_node or first_frame is None or last_frame is None:
+        raise ValueError('write_node, first_frame, and last_frame required')
+    app  = _require_app()
+    node = _require_node(app, write_node)
+    app.render(node, int(first_frame), int(last_frame), frame_step)
+    return {'ok': True, 'write_node': write_node, 'first_frame': first_frame, 'last_frame': last_frame}
+
+
+def _cmd_create_backdrop(params):
+    label = params.get('label', '')
+    app   = _require_app()
+    node  = app.createNode('fr.inria.built-in.BackDrop')
+    if node is None:
+        raise RuntimeError('Failed to create BackDrop node')
+    if label:
+        node.setLabel(label)
+    return _node_summary(node)
+
+
+def _cmd_list_plugin_ids(params):
+    import NatronEngine
+    filter_str = params.get('filter', '')
+    if filter_str:
+        ids = list(NatronEngine.natron.getPluginIDs(filter_str))
+    else:
+        ids = list(NatronEngine.natron.getPluginIDs())
+    return {'plugin_ids': ids}
+
+
+def _cmd_modify_node(params):
+    node_name = params.get('node')
+    knobs     = params.get('params', {})
+    if not node_name or not knobs:
+        raise ValueError('node and params required')
+    node = _require_node(_require_app(), node_name)
+    for param_name, value in knobs.items():
+        param = _require_param(node, param_name)
+        param.setValue(value)
+    return {'ok': True, 'node': node_name, 'updated': list(knobs.keys())}
+
+
+def _cmd_find_nodes_by_type(params):
+    plugin_id = params.get('plugin_id')
+    if not plugin_id:
+        raise ValueError('plugin_id required')
+    app = _require_app()
+    matches = [
+        {'script_name': n.getScriptName(), 'label': n.getLabel()}
+        for n in app.getChildren()
+        if n.getPluginID() == plugin_id
+    ]
+    return {'plugin_id': plugin_id, 'nodes': matches}
+
+
+def _cmd_batch_set_knob(params):
+    node_names = params.get('nodes', [])
+    param_name = params.get('param')
+    value      = params.get('value')
+    if not node_names or not param_name or value is None:
+        raise ValueError('nodes, param, and value required')
+    app     = _require_app()
+    updated = []
+    for name in node_names:
+        node  = _require_node(app, name)
+        param = _require_param(node, param_name)
+        param.setValue(value)
+        updated.append(name)
+    return {'ok': True, 'updated': updated, 'param': param_name, 'value': value}
+
+
+def _cmd_set_expression(params):
+    node_name  = params.get('node')
+    param_name = params.get('param')
+    expr       = params.get('expression')
+    dimension  = int(params.get('dimension', 0))
+    has_ret    = bool(params.get('has_return_var', False))
+    if not node_name or not param_name or expr is None:
+        raise ValueError('node, param, and expression required')
+    param = _require_param(_require_node(_require_app(), node_name), param_name)
+    param.setExpression(expr, has_ret, dimension)
+    return {
+        'ok':         True,
+        'node':       node_name,
+        'param':      param_name,
+        'expression': expr,
+        'dimension':  dimension,
+    }
+
+
+def _cmd_get_expression(params):
+    node_name  = params.get('node')
+    param_name = params.get('param')
+    dimension  = int(params.get('dimension', 0))
+    if not node_name or not param_name:
+        raise ValueError('node and param required')
+    param = _require_param(_require_node(_require_app(), node_name), param_name)
+    expr, has_ret = param.getExpression(dimension)
+    return {
+        'node':           node_name,
+        'param':          param_name,
+        'dimension':      dimension,
+        'expression':     expr,
+        'has_return_var': has_ret,
+    }
+
+
+def _cmd_clear_expression(params):
+    node_name  = params.get('node')
+    param_name = params.get('param')
+    dimension  = int(params.get('dimension', 0))
+    if not node_name or not param_name:
+        raise ValueError('node and param required')
+    param = _require_param(_require_node(_require_app(), node_name), param_name)
+    param.setExpression('', False, dimension)
+    return {'ok': True, 'node': node_name, 'param': param_name, 'dimension': dimension}
+
+
+def _cmd_setup_write_node(params):
+    file_path = params.get('file_path')
+    src_name  = params.get('src', '')
+    if not file_path:
+        raise ValueError('file_path required')
+    app    = _require_app()
+    writer = app.createWriter(file_path)
+    if writer is None:
+        raise RuntimeError(f'Failed to create writer for: {file_path}')
+    if src_name:
+        src = _require_node(app, src_name)
+        writer.connectInput(0, src)
+    return {**_node_summary(writer), 'file_path': file_path}
 
 
 # ---------------------------------------------------------------------------

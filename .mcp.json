@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "natron": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "natron_mcp_server.py"
+      ],
+      "env": {}
+    }
+  }
+}

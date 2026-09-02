@@ -68,7 +68,7 @@ def test_create_node():
     with patch.object(bridge, '_client', mock):
         result = bridge.create_node('fr.inria.built-in.Grade')
     assert result['script_name'] == 'Grade1'
-    mock.call.assert_called_once_with('create_node', {'plugin_id': 'fr.inria.built-in.Grade'})
+    mock.call.assert_called_once_with('create_node', {'plugin_id': 'fr.inria.built-in.Grade'}, timeout=10.0)
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ def test_set_parameter():
         result = bridge.set_parameter('Grade1', 'multiply', 2.0)
     assert result['ok'] is True
     mock.call.assert_called_once_with(
-        'set_parameter', {'node': 'Grade1', 'param': 'multiply', 'value': 2.0}
+        'set_parameter', {'node': 'Grade1', 'param': 'multiply', 'value': 2.0}, timeout=10.0
     )
 
 

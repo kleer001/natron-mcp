@@ -87,11 +87,16 @@ def main():
     renderer_name = 'NatronRenderer.exe' if sys.platform == 'win32' else 'NatronRenderer'
 
     if args.headless:
-        binary = install / renderer_name
+        # Prefer the actual ELF binary in bin/ over the bash wrapper at the install
+        # root — the wrapper exits with code 144 when stdin is a pipe (Claude tool
+        # environment), but the direct binary works fine.
+        bin_subdir = install / 'bin' / renderer_name
+        binary = bin_subdir if bin_subdir.exists() else install / renderer_name
         if not binary.exists():
             print(f'Error: NatronRenderer not found at {binary}', file=sys.stderr)
             sys.exit(1)
-        cmd = [str(binary), '-t']
+        keepalive = Path(__file__).parent / 'natron_keepalive.py'
+        cmd = [str(binary), '-t', '-s', str(keepalive)]
         if args.project:
             cmd.append(args.project)
     else:
@@ -107,7 +112,14 @@ def main():
             print('No recent project found — Natron will start with an untitled project')
             cmd = [str(binary)]
 
-    proc = subprocess.Popen(cmd)
+    if args.headless:
+        # NatronRenderer -t reads stdin; pipe from tail -f /dev/null to keep it
+        # open indefinitely so the process doesn't exit on EOF.
+        tail = subprocess.Popen(['tail', '-f', '/dev/null'], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(cmd, stdin=tail.stdout)
+        tail.stdout.close()  # release parent's copy of the fd; NatronRenderer keeps its own
+    else:
+        proc = subprocess.Popen(cmd)
     print(f'Natron PID: {proc.pid}')
 
     print(f'Waiting for MCP server on port {MCP_PORT}', end='', flush=True)

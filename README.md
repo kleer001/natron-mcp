@@ -6,7 +6,7 @@ and query Natron's documentation — all from Claude Code.
 
 ## What it does
 
-- **12 MCP tools**: node graph manipulation (create, connect, read/write parameters, execute Python) plus offline doc search
+- **27 MCP tools**: node graph manipulation, project I/O, rendering, batch operations, and offline doc search
 - **Offline doc search** — BM25 over Natron's bundled HTML docs, zero network calls
 - Works with Natron 2.5.x (Qt4 / PySide 1.2.4)
 
@@ -93,6 +93,7 @@ uv run python scripts/launch.py
 
 ## Available tools
 
+### Node graph
 | Tool | Description |
 |------|-------------|
 | `ping` | Check connectivity to Natron |
@@ -102,9 +103,37 @@ uv run python scripts/launch.py
 | `get_node_info` | Node inputs and parameter names |
 | `get_parameter` | Read a parameter value |
 | `set_parameter` | Write a parameter value |
+| `modify_node` | Set multiple parameters on a node in one call |
 | `connect_nodes` | Wire src output → dst input |
 | `delete_node` | Remove a node |
+| `set_node_position` | Move a node in the graph |
+| `set_node_label` | Change a node's display label |
+| `set_node_color` | Set a node's tile color (RGB 0–1) |
+| `create_backdrop` | Create a BackDrop grouping/annotation node |
+| `find_nodes_by_type` | Find all nodes matching a plugin ID |
+| `batch_set_knob` | Set the same parameter on multiple nodes |
 | `execute_python` | Run Python in Natron's Script Editor namespace |
+
+### Project
+| Tool | Description |
+|------|-------------|
+| `save_project` | Save the current project to disk |
+| `load_project` | Open a `.ntp` project file |
+| `get_frame` | Get the current timeline frame |
+| `set_frame` | Seek the timeline (GUI mode + Viewer node required) |
+| `set_project_settings` | Set FPS and/or frame range |
+| `list_plugin_ids` | List all available plugin IDs (with optional filter) |
+
+### Rendering
+| Tool | Description |
+|------|-------------|
+| `setup_write_node` | Create a Write node wired to a source node |
+| `render` | Start rendering via a Write node (non-blocking in GUI mode) |
+| `monitor_render` | Poll the filesystem until an output file appears |
+
+### Documentation
+| Tool | Description |
+|------|-------------|
 | `search_docs` | BM25 search over Natron's offline documentation |
 | `get_doc` | Return the full text of a documentation page |
 
